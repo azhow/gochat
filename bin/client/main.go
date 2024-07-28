@@ -16,16 +16,16 @@ func main() {
 		return
 	}
 
-	handle(connection)
+	handle(connection, os.Stdin, os.Stdout)
 }
 
-func handle(conn net.Conn) {
+func handle(conn net.Conn, r io.Reader, w io.Writer) {
 	defer conn.Close()
 
 	stdinChan := make(chan string)
 	srvChan := make(chan string)
 
-	go readIntoChannel(os.Stdin, stdinChan)
+	go readIntoChannel(r, stdinChan)
 	go readFromServerIntoChannel(conn, srvChan)
 
 	quit := false
@@ -33,17 +33,17 @@ func handle(conn net.Conn) {
 		select {
 		case input := <-stdinChan:
 			if len(input) == 0 {
-				fmt.Println("client quit")
+				w.Write([]byte("Client quit\n"))
 				quit = true
 			} else {
 				conn.Write([]byte(input))
 			}
 		case srvMessage := <-srvChan:
 			if len(srvMessage) == 0 {
-				fmt.Println("server quit")
+				w.Write([]byte("Server quit\n"))
 				quit = true
 			} else {
-				fmt.Println(srvMessage)
+				w.Write([]byte(srvMessage + "\n"))
 			}
 
 		}
@@ -73,4 +73,6 @@ func readFromServerIntoChannel(conn net.Conn, c chan string) {
 			c <- string(buff[0:numBytesReceived])
 		}
 	}
+
+	close(c)
 }
